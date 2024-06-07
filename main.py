@@ -1,6 +1,8 @@
+import gzip
 import click
-# import psycopg
+import psycopg
 import requests
+from lxml import etree
 import tomllib
 from requests.exceptions import HTTPError
 
@@ -15,8 +17,7 @@ def get_user_agent(nation: str):
 
 
 def get_dump():
-    with open("config.toml", "rb") as f:
-        config = tomllib.load(f)
+    config = get_config()
 
     req = requests.get(
         "https://www.nationstates.net/pages/nations.xml.gz",
@@ -34,12 +35,46 @@ def get_dump():
         for chunk in req.iter_content(chunk_size=1024 * 1024):
             dumpfile.write(chunk)
 
-    click.echo("[INFO] Dump written")
+    click.echo("[INFO] Dump downloaded and written")
     return True
 
 
+def fast_iter(context, func, *args, **kwargs):
+    """
+    http://lxml.de/parsing.html#modifying-the-tree
+    Based on Liza Daly's fast_iter
+    http://www.ibm.com/developerworks/xml/library/x-hiperfparse/
+    See also http://effbot.org/zone/element-iterparse.htm
+    """
+    for event, elem in context:
+        func(elem, *args, **kwargs)
+        # It's safe to call clear() here because no descendants will be
+        # accessed
+        elem.clear()
+        # Also eliminate now-empty references from the root node to elem
+        for ancestor in elem.xpath('ancestor-or-self::*'):
+            while ancestor.getprevious() is not None:
+                del ancestor.getparent()[0]
+    del context
+
+
+def process_nation(elem, config):
+    name = elem.find("NAME").text.lower().replace(" ", "_")
+    dbid = elem.find("DBID").text
+    region = elem.find("REGION").text.lower().replace(" ", "_")
+    unstatus = elem.find("UNSTATUS").text
+
+
+def get_config():
+    with open("config.toml", "rb") as f:
+        config = tomllib.load(f)
+    return config
+
+
 def process_dump():
-    pass
+    config = get_config()
+    context = etree.iterparse(gzip.GzipFile("nations.xml.gz"), tag="NATION")
+    fast_iter(context, process_nation, config)
 
 
 @click.group()
