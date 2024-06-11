@@ -24,7 +24,7 @@ def fast_iter(context, func, *args, **kwargs):
 
 
 def process_nation(elem, cursor):
-    name = elem.find("NAME").text.lower().replace(" ", "_")
+    nation = elem.find("NAME").text.lower().replace(" ", "_")
     region = elem.find("REGION").text.lower().replace(" ", "_")
     dbid = elem.find("DBID").text
     unstatus = elem.find("UNSTATUS").text
@@ -35,8 +35,8 @@ def process_nation(elem, cursor):
     )
     endojson = json.dumps(endo)
     cursor.execute(
-        "INSERT INTO nsdump (nsid, name, region, unstatus, endos) VALUES (%s, %s, %s, %s, %s)",
-        (dbid, name, region, unstatus, endojson)
+        "INSERT INTO nsdump (nsid, nation, region, unstatus, endos) VALUES (%s, %s, %s, %s, %s)",
+        (dbid, nation, region, unstatus, endojson)
     )
 
 

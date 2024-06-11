@@ -3,9 +3,11 @@ import getter
 import processor
 import click
 
+
 @click.group()
 def cli():
     pass
+
 
 @cli.command(help="Downloads NS nations dump")
 def download():
