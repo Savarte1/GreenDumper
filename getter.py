@@ -1,12 +1,13 @@
 import requests
 import click
 from requests.exceptions import HTTPError
+import utils
 
 
 def get_dump(config):
     req = requests.get(
         "https://www.nationstates.net/pages/nations.xml.gz",
-        headers={"User-Agent": get_user_agent(config["nation"])},
+        headers={"User-Agent": utils.get_user_agent(config["nation"])},
         stream=True
     )
 

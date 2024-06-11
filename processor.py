@@ -1,6 +1,8 @@
 from lxml import etree
 from gzip import GzipFile
+import psycopg
 import json
+
 
 def fast_iter(context, func, *args, **kwargs):
     """
@@ -21,21 +23,27 @@ def fast_iter(context, func, *args, **kwargs):
     del context
 
 
-def process_nation(elem, session):
-    nation = {}
-    nation["name"] = elem.find("NAME").text.lower().replace(" ", "_")
-    nation["region"] = elem.find("REGION").text.lower().replace(" ", "_")
-    nation["dbid"] = elem.find("DBID").text
-    nation["unstatus"] = elem.find("UNSTATUS").text
-    nation["endo"] = (
+def process_nation(elem, cursor):
+    name = elem.find("NAME").text.lower().replace(" ", "_")
+    region = elem.find("REGION").text.lower().replace(" ", "_")
+    dbid = elem.find("DBID").text
+    unstatus = elem.find("UNSTATUS").text
+    endo = (
         []
         if elem.find("ENDORSEMENTS").text is None
         else elem.find("ENDORSEMENTS").text.split(",")
     )
-    print(nation)
+    endojson = json.dumps(endo)
+    cursor.execute(
+        "INSERT INTO nsdump (nsid, name, region, unstatus, endos) VALUES (%s, %s, %s, %s, %s)",
+        (dbid, name, region, unstatus, endojson)
+    )
 
 
 def process_dump(config):
-    session = None
-    context = etree.iterparse(GzipFile("nations.xml.gz"), tag='NATION', events=('end',))
-    fast_iter(context, process_nation, session)
+    with psycopg.connect(config["dsn"]) as session:
+        with session.cursor() as cursor:
+            cursor.execute("TRUNCATE nsdump;")
+            context = etree.iterparse(GzipFile("nations.xml.gz"), tag='NATION', events=('end',))
+            fast_iter(context, process_nation, cursor)
+            session.commit()
