@@ -1,7 +1,6 @@
 from lxml import etree
 from gzip import GzipFile
-import psycopg
-
+import json
 
 def fast_iter(context, func, *args, **kwargs):
     """
@@ -29,9 +28,9 @@ def process_nation(elem, session):
     nation["dbid"] = elem.find("DBID").text
     nation["unstatus"] = elem.find("UNSTATUS").text
     nation["endo"] = (
-        0
+        []
         if elem.find("ENDORSEMENTS").text is None
-        else elem.find("ENDORSEMENTS").text
+        else elem.find("ENDORSEMENTS").text.split(",")
     )
     print(nation)
 
