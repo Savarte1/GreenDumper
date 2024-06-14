@@ -21,11 +21,10 @@ def process():
     processor.process_dump(config)
 
 
-@cli.command(help="Download and process dump")
-def update():
+@cli.command(help="Processes endorsements from dump")
+def endos():
     config = utils.get_config()
-    if getter.get_dump(config):
-        processor.process_dump(config)
+    processor.process_endos(config)
 
 
 if __name__ == '__main__':

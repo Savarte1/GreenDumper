@@ -1,7 +1,6 @@
 from lxml import etree
 from gzip import GzipFile
 import psycopg
-import json
 
 
 def fast_iter(context, func, *args, **kwargs):
@@ -28,17 +27,10 @@ def process_nation(elem, cursor):
     region = elem.find("REGION").text.lower().replace(" ", "_")
     dbid = elem.find("DBID").text
     unstatus = elem.find("UNSTATUS").text
-    endo = (
-        []
-        if elem.find("ENDORSEMENTS").text is None
-        else elem.find("ENDORSEMENTS").text.split(",")
-    )
-    endojson = json.dumps(endo)
     cursor.execute(
-        "INSERT INTO nsdump (nsid, nation, region, unstatus, endos) VALUES (%s, %s, %s, %s, %s)",
-        (dbid, nation, region, unstatus, endojson)
+        "INSERT INTO nsdump (nsid, nation, region, unstatus) VALUES (%s, %s, %s, %s)",
+        (dbid, nation, region, unstatus)
     )
-
 
 def process_dump(config):
     with psycopg.connect(config["dsn"]) as session:
@@ -46,4 +38,27 @@ def process_dump(config):
             cursor.execute("TRUNCATE nsdump;")
             context = etree.iterparse(GzipFile("nations.xml.gz"), tag='NATION', events=('end',))
             fast_iter(context, process_nation, cursor)
+            session.commit()
+
+
+def process_endos_elem(elem, cursor):
+    nation = elem.find("NAME").text.lower().replace(" ", "_")
+    endos = (
+        []
+        if elem.find("ENDORSEMENTS").text is None
+        else elem.find("ENDORSEMENTS").text.split(",")
+    )
+    if endos:
+        for endo in endos:
+            cursor.execute(
+                "INSERT INTO nsdump_endos (endorser, endorsed) VALUES (%s, %s)",
+                (endo, nation)
+            )
+
+def process_endos(config):
+    with psycopg.connect(config["dsn"]) as session:
+        with session.cursor() as cursor:
+            cursor.execute("TRUNCATE nsdump_endos RESTART IDENTITY;")
+            context = etree.iterparse(GzipFile("nations.xml.gz"), tag='NATION', events=('end',))
+            fast_iter(context, process_endos_elem, cursor)
             session.commit()
